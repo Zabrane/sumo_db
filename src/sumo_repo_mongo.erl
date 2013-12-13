@@ -37,13 +37,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Types.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--record(state, {pool:: pid()}).
+-record(state, {backend :: atom()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% External API.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-persist(#sumo_doc{name=DocName}=Doc, #state{pool=Pool}=State) ->
+persist(#sumo_doc{name=DocName}=Doc, #state{backend=Backend}=State) ->
   IdField = sumo:field_name(sumo:get_id_field(DocName)),
   NewId = case sumo:get_field(IdField, Doc) of
     undefined -> emongo:oid();
@@ -54,14 +54,14 @@ persist(#sumo_doc{name=DocName}=Doc, #state{pool=Pool}=State) ->
     '_id', {oid, NewId}, sumo:set_field(IdField, emongo:dec2hex(NewId), Doc)
   ),
   ok = emongo:update(
-    Pool, atom_to_list(DocName), Selector, NewDoc#sumo_doc.fields, true
+    Backend, atom_to_list(DocName), Selector, NewDoc#sumo_doc.fields, true
   ),
   {ok, NewDoc, State}.
 
-delete(DocName, Id, #state{pool=Pool}=State) ->
+delete(DocName, Id, #state{backend=Backend}=State) ->
   IdField = sumo:field_name(sumo:get_id_field(DocName)),
   ok = emongo:delete(
-    Pool, atom_to_list(DocName), [{atom_to_list(IdField), Id}]
+    Backend, atom_to_list(DocName), [{atom_to_list(IdField), Id}]
   ),
   {ok, 1, State}.
 
@@ -149,8 +149,5 @@ create_index(_Attr) ->
   none.
 
 init(Options) ->
-  % The storage backend key in the options specifies the name of the process
-  % which creates and initializes the storage backend.
   Backend = proplists:get_value(storage_backend, Options),
-  Pool    = sumo_backend_mysql:get_pool(Backend),
-  {ok, #state{pool=Pool}}.
+  {ok, #state{pool=Pool, backend=Backend}}.

@@ -39,7 +39,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Types.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--record(state, {c::pid()}).
+-record(state, {
+  pool :: atom() | pid(),
+  backend :: atom()
+}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,12 +101,6 @@ generate_id(DocName, State) ->
   list_to_integer(binary_to_list(Id)).
 
 init(Options) ->
-  {ok, C} = eredis:start_link(
-    proplists:get_value(host, Options, "localhost"),
-    proplists:get_value(port, Options, 6379),
-    proplists:get_value(database, Options, ""),
-    proplists:get_value(password, Options, ""),
-    proplists:get_value(reconnect_sleep, Options, 100)
-  ),
-  {ok, #state{c=C}}.
+  Backend = proplists:get_value(storage_backend, Options),
+  {ok, #state{pool=Pool, backend=Backend}}.
 
